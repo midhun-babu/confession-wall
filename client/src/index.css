@@ -9,12 +9,67 @@
 }
 
 .romantic-mode {
-  --bg-color: #1a0b14;
+  --bg-color: #fff1f2;
+  --bg-gradient: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
+  --card-bg: rgba(255, 255, 255, 0.8);
   --accent-color: #f43f5e;
-  --text-main: #fff1f2;
-  --text-muted: #fda4af;
-  --glow: 0 0 25px rgba(244, 63, 94, 0.4);
-  --font-heading: 'Playfair Display', serif;
+  --text-main: #4c0519;
+  --text-muted: #9f1239;
+  --glow: 0 0 25px rgba(244, 63, 94, 0.2);
+  --font-heading: 'Dancing Script', cursive;
+}
+
+.romantic-mode body {
+  background: var(--bg-gradient);
+  background-attachment: fixed;
+}
+
+.romantic-mode h1,
+.romantic-mode .display-4 {
+  background: linear-gradient(to right, #f43f5e, #ec4899);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.romantic-mode .theme-card {
+  border: 1px solid rgba(244, 63, 94, 0.1) !important;
+  box-shadow: 0 10px 30px rgba(244, 63, 94, 0.05) !important;
+}
+
+.romantic-mode .theme-card:hover {
+  border-color: var(--accent-color) !important;
+  box-shadow: 0 15px 35px rgba(244, 63, 94, 0.1) !important;
+}
+
+.romantic-mode .form-control {
+  color: #4c0519 !important;
+}
+
+.romantic-mode .form-control::placeholder {
+  color: rgba(76, 5, 25, 0.5);
+}
+
+.floating-heart {
+  position: fixed;
+  color: var(--accent-color);
+  opacity: 0.6;
+  pointer-events: none;
+  z-index: -1;
+  animation: float-up var(--duration) linear infinite;
+  font-size: var(--size);
+}
+
+@keyframes float-up {
+  0% {
+    transform: translateY(100vh) rotate(0deg);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(-100px) rotate(360deg);
+    opacity: 0;
+  }
 }
 
 body {

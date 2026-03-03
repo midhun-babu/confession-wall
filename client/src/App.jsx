@@ -7,6 +7,45 @@ import { motion, AnimatePresence } from 'framer-motion';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const socket = io(API_URL);
 
+const FloatingHearts = () => {
+  const [hearts, setHearts] = useState([]);
+
+  useEffect(() => {
+    const symbols = ['❤️', '💖', '💗', '💓', '💕'];
+    const interval = setInterval(() => {
+      const id = Date.now();
+      const newHeart = {
+        id,
+        symbol: symbols[Math.floor(Math.random() * symbols.length)],
+        left: Math.random() * 100 + 'vw',
+        size: (Math.random() * 20 + 10) + 'px',
+        duration: (Math.random() * 10 + 5) + 's',
+      };
+      setHearts(prev => [...prev.slice(-20), newHeart]);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <>
+      {hearts.map(heart => (
+        <span
+          key={heart.id}
+          className="floating-heart"
+          style={{
+            '--size': heart.size,
+            '--duration': heart.duration,
+            left: heart.left
+          }}
+        >
+          {heart.symbol}
+        </span>
+      ))}
+    </>
+  );
+};
+
 const ConfessionCard = ({ confession, onReact }) => {
   const reactionsList = ['❤️', '😂', '💀', '🔥', '🫂'];
 
@@ -89,6 +128,7 @@ function App() {
 
   return (
     <div className={`min-vh-100 py-5 ${isRomantic ? 'romantic-mode' : ''}`}>
+      {isRomantic && <FloatingHearts />}
       <div className="container">
         <div className="row justify-content-center">
           <div className="col-12 col-lg-8">
