@@ -42,14 +42,14 @@ function App() {
   const [confessions, setConfessions] = useState([]);
   const [newConfession, setNewConfession] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRomantic, setIsRomantic] = useState(false);
 
   useEffect(() => {
-    // Fetch initial confessions
+    // ... existing effect logic ...
     fetch(`${API_URL}/api/confessions`)
       .then(res => res.json())
       .then(data => setConfessions(data));
 
-    // Socket listeners
     socket.on('new-confession', (confession) => {
       setConfessions(prev => [confession, ...prev]);
     });
@@ -80,7 +80,7 @@ function App() {
     setIsSubmitting(true);
     socket.emit('post-confession', newConfession);
     setNewConfession('');
-    setTimeout(() => setIsSubmitting(false), 500); // UI feedback delay
+    setTimeout(() => setIsSubmitting(false), 500);
   };
 
   const handleReact = (id, emoji) => {
@@ -88,59 +88,104 @@ function App() {
   };
 
   return (
-    <div className="app-container">
-      <header className="header">
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.5 }}
-        >
-          <h1><Ghost size={32} style={{ verticalAlign: 'middle', marginRight: '10px' }} /> Midnight Ghost</h1>
-          <p>Whisper your secrets into the night... they vanish at dawn.</p>
-        </motion.div>
-      </header>
+    <div className={`min-vh-100 py-5 ${isRomantic ? 'romantic-mode' : ''}`}>
+      <div className="container">
+        <div className="row justify-content-center">
+          <div className="col-12 col-lg-8">
+            <header className="header text-center mb-5 position-relative">
+              <div className="position-absolute end-0 top-0">
+                <button
+                  className="btn btn-outline-secondary rounded-circle p-2 d-flex align-items-center justify-content-center hover-scale"
+                  onClick={() => setIsRomantic(!isRomantic)}
+                  title={isRomantic ? "Switch to Ghost Mode" : "Switch to Romantic Mode"}
+                  style={{ width: '40px', height: '40px' }}
+                >
+                  {isRomantic ? <Ghost size={20} /> : <Heart size={20} fill="#f43f5e" color="#f43f5e" />}
+                </button>
+              </div>
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.5 }}
+              >
+                <h1 className="display-4 fw-bold mb-3">
+                  {isRomantic ? <Heart size={40} fill="currentColor" className="me-2 align-middle" /> : <Ghost size={40} className="me-2 align-middle" />}
+                  {isRomantic ? 'Lover\'s Whisper' : 'Midnight Ghost'}
+                </h1>
+                <p className="lead opacity-75">{isRomantic ? 'Speak from the heart... anonymously.' : 'Whisper your secrets into the night... they vanish at dawn.'}</p>
+              </motion.div>
+            </header>
 
-      <div className="confession-form">
-        <form onSubmit={handleSubmit}>
-          <textarea
-            placeholder="Share an anonymous confession..."
-            value={newConfession}
-            onChange={(e) => setNewConfession(e.target.value)}
-            rows="3"
-            maxLength="500"
-          />
-          <div className="form-footer">
-            <span className="char-count">{newConfession.length}/500</span>
-            <button
-              type="submit"
-              className="post-btn"
-              disabled={isSubmitting || !newConfession.trim()}
-            >
-              <Send size={18} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-              Whisp
-            </button>
+            <div className="card shadow-sm mb-4 theme-card">
+              <div className="card-body p-4">
+                <form onSubmit={handleSubmit}>
+                  <textarea
+                    className="form-control bg-transparent border-0 border-bottom rounded-0 mb-3 fs-5"
+                    placeholder="Share an anonymous confession..."
+                    value={newConfession}
+                    onChange={(e) => setNewConfession(e.target.value)}
+                    rows="3"
+                    maxLength="500"
+                    style={{ color: 'inherit' }}
+                  />
+                  <div className="d-flex justify-content-between align-items-center">
+                    <span className="small opacity-50">{newConfession.length}/500</span>
+                    <button
+                      type="submit"
+                      className="btn btn-primary rounded-pill px-4 fw-bold"
+                      disabled={isSubmitting || !newConfession.trim()}
+                    >
+                      <Send size={18} className="me-2 align-middle" />
+                      Whisp
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <div className="feed">
+              <AnimatePresence>
+                {confessions.map(confession => (
+                  <motion.div
+                    key={confession.id}
+                    className="card mb-3 theme-card shadow-sm"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    layout
+                  >
+                    <div className="card-body p-4">
+                      <div className="small mb-2 opacity-50 d-flex align-items-center">
+                        <Clock size={12} className="me-1" />
+                        {formatDistanceToNow(new Date(confession.timestamp), { addSuffix: true })}
+                      </div>
+                      <p className="card-text fs-5 mb-4" style={{ whiteSpace: 'pre-wrap' }}>{confession.content}</p>
+                      <div className="d-flex flex-wrap gap-2">
+                        {['❤️', '😂', '💀', '🔥', '🫂'].map(emoji => (
+                          <button
+                            key={emoji}
+                            className={`btn btn-sm rounded-pill px-3 transition-all ${confession.reactions[emoji] ? 'btn-primary opacity-75' : 'btn-outline-secondary'}`}
+                            onClick={() => handleReact(confession.id, emoji)}
+                          >
+                            {emoji} <span className="ms-1">{confession.reactions[emoji] || 0}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+
+            {confessions.length === 0 && (
+              <div className="text-center mt-5 opacity-50">
+                <Sparkles size={48} className="mb-3" />
+                <p className="h5">The night is quiet. Be the first to whisper.</p>
+              </div>
+            )}
           </div>
-        </form>
-      </div>
-
-      <div className="feed">
-        <AnimatePresence>
-          {confessions.map(confession => (
-            <ConfessionCard
-              key={confession.id}
-              confession={confession}
-              onReact={handleReact}
-            />
-          ))}
-        </AnimatePresence>
-      </div>
-
-      {confessions.length === 0 && (
-        <div style={{ textAlign: 'center', marginTop: '3rem', color: '#64748b' }}>
-          <Sparkles />
-          <p>The night is quiet. Be the first to whisper.</p>
         </div>
-      )}
+      </div>
     </div>
   );
 }
