@@ -35,9 +35,10 @@ io.on('connection', (socket) => {
         if (!content || content.length > 500) return;
 
         // Simple profanity filtering
-        const cleanContent = filter.isProfane(content) ? filter.clean(content) : content;
+        const isProfane = filter.isProfane(content);
+        const cleanContent = isProfane ? filter.clean(content) : content;
 
-        const confession = addConfession(cleanContent);
+        const confession = addConfession(cleanContent, isProfane);
         io.emit('new-confession', confession);
     });
 

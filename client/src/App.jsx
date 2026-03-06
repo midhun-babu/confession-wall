@@ -1,51 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
-import { Ghost, Send, Heart, Smile, Frown, Sparkles, Clock, Moon, Sun } from 'lucide-react';
+import { Ghost, Send, Heart, Smile, Frown, Sparkles, Clock, Share2, Copy, Check } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const socket = io(API_URL);
 
-const ConfessionCard = ({ confession, onReact }) => {
-  const reactionsList = ['❤️', '😂', '💀', '🔥', '🫂'];
-
-  return (
-    <motion.div
-      className="confession-card"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      layout
-    >
-      <div className="timestamp">
-        <Clock size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-        {formatDistanceToNow(new Date(confession.timestamp), { addSuffix: true })}
-      </div>
-      <div className="content">{confession.content}</div>
-      <div className="reactions">
-        {reactionsList.map(emoji => (
-          <button
-            key={emoji}
-            className={`reaction-btn ${confession.reactions[emoji] ? 'active' : ''}`}
-            onClick={() => onReact(confession.id, emoji)}
-          >
-            {emoji} {confession.reactions[emoji] || 0}
-          </button>
-        ))}
-      </div>
-    </motion.div>
-  );
-};
-
 function App() {
   const [confessions, setConfessions] = useState([]);
   const [newConfession, setNewConfession] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRomantic, setIsRomantic] = useState(false);
+  const [copiedId, setCopiedId] = useState(null);
 
   useEffect(() => {
-    // ... existing effect logic ...
+    document.body.className = isRomantic ? 'romantic-mode' : '';
+  }, [isRomantic]);
+
+  useEffect(() => {
     fetch(`${API_URL}/api/confessions`)
       .then(res => res.json())
       .then(data => setConfessions(data));
@@ -87,9 +60,37 @@ function App() {
     socket.emit('react', { id, emoji });
   };
 
+  const handleShare = async (confession) => {
+    const shareData = {
+      title: 'Anonymous Confession',
+      text: `"${confession.content}" - Shared from Confession Wall`,
+      url: window.location.href
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        console.error('Error sharing:', err);
+      }
+    } else {
+      // Fallback to copy
+      navigator.clipboard.writeText(`"${confession.content}" - Whispered on ${window.location.href}`);
+      setCopiedId(confession.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    }
+  };
+
+  const charCountColor = () => {
+    const len = newConfession.length;
+    if (len > 450) return 'text-danger fw-bold';
+    if (len > 400) return 'text-warning';
+    return 'opacity-50';
+  };
+
   return (
     <div className={`min-vh-100 py-5 ${isRomantic ? 'romantic-mode' : ''}`}>
-      <div className="container">
+      <div className="container" style={{ position: 'relative', zIndex: 2 }}>
         <div className="row justify-content-center">
           <div className="col-12 col-lg-8">
             <header className="header text-center mb-5 position-relative">
@@ -116,7 +117,7 @@ function App() {
               </motion.div>
             </header>
 
-            <div className="card shadow-sm mb-4 theme-card">
+            <div className="card shadow-sm mb-4 theme-card overflow-hidden">
               <div className="card-body p-4">
                 <form onSubmit={handleSubmit}>
                   <textarea
@@ -126,16 +127,18 @@ function App() {
                     onChange={(e) => setNewConfession(e.target.value)}
                     rows="3"
                     maxLength="500"
-                    style={{ color: 'inherit' }}
+                    style={{ color: 'inherit', resize: 'none' }}
                   />
                   <div className="d-flex justify-content-between align-items-center">
-                    <span className="small opacity-50">{newConfession.length}/500</span>
+                    <span className={`small transition-all ${charCountColor()}`}>
+                      {newConfession.length}/500
+                    </span>
                     <button
                       type="submit"
-                      className="btn btn-primary rounded-pill px-4 fw-bold"
+                      className="btn btn-primary rounded-pill px-4 fw-bold d-flex align-items-center gap-2"
                       disabled={isSubmitting || !newConfession.trim()}
                     >
-                      <Send size={18} className="me-2 align-middle" />
+                      <Send size={18} />
                       Whisp
                     </button>
                   </div>
@@ -144,30 +147,50 @@ function App() {
             </div>
 
             <div className="feed">
-              <AnimatePresence>
+              <AnimatePresence mode="popLayout">
                 {confessions.map(confession => (
                   <motion.div
                     key={confession.id}
-                    className="card mb-3 theme-card shadow-sm"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="card mb-4 theme-card shadow-sm"
+                    initial={{ opacity: 0, y: 30, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
                     layout
                   >
                     <div className="card-body p-4">
-                      <div className="small mb-2 opacity-50 d-flex align-items-center">
-                        <Clock size={12} className="me-1" />
-                        {formatDistanceToNow(new Date(confession.timestamp), { addSuffix: true })}
+                      <div className="d-flex justify-content-between align-items-center mb-3">
+                        <div className="small opacity-50 d-flex align-items-center gap-2">
+                          <div className="d-flex align-items-center">
+                            <Clock size={12} className="me-1" />
+                            {formatDistanceToNow(new Date(confession.timestamp), { addSuffix: true })}
+                          </div>
+                          {confession.filtered && (
+                            <span className="badge rounded-pill bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 fw-normal px-2">
+                              Filtered for kindness
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          className="btn btn-link p-0 opacity-50 hover-opacity-100 transition-all border-0 shadow-none"
+                          onClick={() => handleShare(confession)}
+                          title="Share whisper"
+                        >
+                          {copiedId === confession.id ? <Check size={16} className="text-success" /> : <Share2 size={16} />}
+                        </button>
                       </div>
-                      <p className="card-text fs-5 mb-4" style={{ whiteSpace: 'pre-wrap' }}>{confession.content}</p>
+                      <p className="card-text fs-5 mb-4" style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+                        {confession.content}
+                      </p>
                       <div className="d-flex flex-wrap gap-2">
                         {['❤️', '😂', '💀', '🔥', '🫂'].map(emoji => (
                           <button
                             key={emoji}
-                            className={`btn btn-sm rounded-pill px-3 transition-all ${confession.reactions[emoji] ? 'btn-primary opacity-75' : 'btn-outline-secondary'}`}
+                            className={`btn btn-sm rounded-pill px-3 transition-all d-flex align-items-center gap-1 ${confession.reactions[emoji] ? 'btn-primary' : 'btn-outline-secondary'}`}
                             onClick={() => handleReact(confession.id, emoji)}
+                            style={{ background: confession.reactions[emoji] ? 'var(--accent-color)' : 'transparent' }}
                           >
-                            {emoji} <span className="ms-1">{confession.reactions[emoji] || 0}</span>
+                            <span>{emoji}</span>
+                            <span>{confession.reactions[emoji] || 0}</span>
                           </button>
                         ))}
                       </div>

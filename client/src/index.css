@@ -1,19 +1,25 @@
 :root {
   --bg-color: #0b0e14;
-  --card-bg: rgba(255, 255, 255, 0.05);
+  --card-bg: rgba(255, 255, 255, 0.03);
+  --card-border: rgba(255, 255, 255, 0.08);
   --accent-color: #a855f7;
+  --accent-glow: rgba(168, 85, 247, 0.4);
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
-  --glow: 0 0 20px rgba(168, 85, 247, 0.3);
+  --glow: 0 0 20px var(--accent-glow);
   --font-heading: 'Space Grotesk', sans-serif;
+  --noise: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3%3Ffilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
 }
 
 .romantic-mode {
   --bg-color: #1a0b14;
+  --card-bg: rgba(255, 255, 255, 0.04);
+  --card-border: rgba(244, 63, 94, 0.15);
   --accent-color: #f43f5e;
+  --accent-glow: rgba(244, 63, 94, 0.5);
   --text-main: #fff1f2;
   --text-muted: #fda4af;
-  --glow: 0 0 25px rgba(244, 63, 94, 0.4);
+  --glow: 0 0 25px var(--accent-glow);
   --font-heading: 'Playfair Display', serif;
 }
 
@@ -22,30 +28,47 @@ body {
   background-color: var(--bg-color);
   color: var(--text-main);
   transition: background-color 0.5s ease, color 0.5s ease;
+  min-height: 100vh;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: var(--noise);
+  opacity: 0.04;
+  pointer-events: none;
+  z-index: 1;
 }
 
 h1,
 .display-4 {
   font-family: var(--font-heading);
-  background: linear-gradient(to right, var(--accent-color), #6366f1);
+  background: linear-gradient(135deg, var(--accent-color), #6366f1);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  text-shadow: var(--glow);
+  filter: drop-shadow(0 0 8px var(--accent-glow));
 }
 
 .theme-card {
   background: var(--card-bg) !important;
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid var(--card-border) !important;
   color: var(--text-main) !important;
-  border-radius: 1.25rem !important;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border-radius: 1.5rem !important;
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease, border-color 0.4s ease;
 }
 
 .theme-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--glow) !important;
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 0 0 1px var(--accent-color);
+  border-color: var(--accent-color) !important;
 }
 
 .btn-primary {

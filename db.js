@@ -10,21 +10,23 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     content TEXT NOT NULL,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    reactions TEXT DEFAULT '{}'
+    reactions TEXT DEFAULT '{}',
+    filtered INTEGER DEFAULT 0
   )
 `);
 
-const addConfession = (content) => {
-  const stmt = db.prepare('INSERT INTO confessions (content) VALUES (?)');
-  const info = stmt.run(content);
-  return { id: info.lastInsertRowid, content, timestamp: new Date().toISOString(), reactions: {} };
+const addConfession = (content, filtered = 0) => {
+  const stmt = db.prepare('INSERT INTO confessions (content, filtered) VALUES (?, ?)');
+  const info = stmt.run(content, filtered ? 1 : 0);
+  return { id: info.lastInsertRowid, content, timestamp: new Date().toISOString(), reactions: {}, filtered: !!filtered };
 };
 
 const getConfessions = () => {
   const stmt = db.prepare('SELECT * FROM confessions ORDER BY timestamp DESC');
   return stmt.all().map(row => ({
     ...row,
-    reactions: JSON.parse(row.reactions)
+    reactions: JSON.parse(row.reactions),
+    filtered: !!row.filtered
   }));
 };
 
