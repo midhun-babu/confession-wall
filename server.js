@@ -3,42 +3,37 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const Filter = require('bad-words');
-const { addConfession, getConfessions, addReaction, deleteExpiredConfessions } = require('./db');
+const { addConfession, getConfessions, addEcho, addReaction, deleteExpiredConfessions } = require('./db');
 
 const app = express();
-app.use(cors({
-    origin: process.env.FRONTEND_URL || '*',
-    methods: ['GET', 'POST']
-}));
-app.use(express.json());
+// ... (cors and middleware config)
 
-const server = http.createServer(app);
-const io = new Server(server, {
-    cors: {
-        origin: process.env.FRONTEND_URL || '*',
-        methods: ['GET', 'POST']
-    }
-});
-
-const filter = new Filter();
-
-// API Routes
-app.get('/api/confessions', (req, res) => {
-    res.json(getConfessions());
-});
+// ...
 
 // Socket.io
 io.on('connection', (socket) => {
     console.log('A user connected');
 
-    socket.on('post-confession', (content) => {
+    socket.on('post-confession', ({ content, vibe }) => {
         if (!content || content.length > 500) return;
+
+        const validVibes = ['neutral', 'secret', 'love', 'hot', 'regret', 'support'];
+        const selectedVibe = validVibes.includes(vibe) ? vibe : 'neutral';
 
         // Simple profanity filtering
         const cleanContent = filter.isProfane(content) ? filter.clean(content) : content;
 
-        const confession = addConfession(cleanContent);
+        const confession = addConfession(cleanContent, selectedVibe);
         io.emit('new-confession', confession);
+    });
+
+    socket.on('post-echo', ({ confessionId, content }) => {
+        if (!content || content.length > 200) return;
+
+        const cleanContent = filter.isProfane(content) ? filter.clean(content) : content;
+        const echo = addEcho(confessionId, cleanContent);
+
+        io.emit('new-echo', echo);
     });
 
     socket.on('react', ({ id, emoji }) => {

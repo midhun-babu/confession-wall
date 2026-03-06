@@ -9,23 +9,58 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS confessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     content TEXT NOT NULL,
+    vibe TEXT DEFAULT 'neutral',
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     reactions TEXT DEFAULT '{}'
-  )
+  );
+
+  CREATE TABLE IF NOT EXISTS echoes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    confession_id INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (confession_id) REFERENCES confessions(id) ON DELETE CASCADE
+  );
 `);
 
-const addConfession = (content) => {
-  const stmt = db.prepare('INSERT INTO confessions (content) VALUES (?)');
-  const info = stmt.run(content);
-  return { id: info.lastInsertRowid, content, timestamp: new Date().toISOString(), reactions: {} };
+const addConfession = (content, vibe = 'neutral') => {
+  const stmt = db.prepare('INSERT INTO confessions (content, vibe) VALUES (?, ?)');
+  const info = stmt.run(content, vibe);
+  return {
+    id: info.lastInsertRowid,
+    content,
+    vibe,
+    timestamp: new Date().toISOString(),
+    reactions: {},
+    echoes: []
+  };
 };
 
 const getConfessions = () => {
   const stmt = db.prepare('SELECT * FROM confessions ORDER BY timestamp DESC');
-  return stmt.all().map(row => ({
-    ...row,
-    reactions: JSON.parse(row.reactions)
-  }));
+  const confessions = stmt.all();
+
+  return confessions.map(row => {
+    const echoesStmt = db.prepare('SELECT * FROM echoes WHERE confession_id = ? ORDER BY timestamp ASC');
+    const echoes = echoesStmt.all();
+
+    return {
+      ...row,
+      reactions: JSON.parse(row.reactions),
+      echoes: echoes
+    };
+  });
+};
+
+const addEcho = (confession_id, content) => {
+  const stmt = db.prepare('INSERT INTO echoes (confession_id, content) VALUES (?, ?)');
+  const info = stmt.run(confession_id, content);
+  return {
+    id: info.lastInsertRowid,
+    confession_id,
+    content,
+    timestamp: new Date().toISOString()
+  };
 };
 
 const addReaction = (id, emoji) => {
@@ -50,6 +85,7 @@ const deleteExpiredConfessions = () => {
 module.exports = {
   addConfession,
   getConfessions,
+  addEcho,
   addReaction,
   deleteExpiredConfessions
 };
