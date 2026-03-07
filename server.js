@@ -21,6 +21,7 @@ const io = new Server(server, {
 });
 
 const filter = new Filter();
+filter.addWords('badword');
 
 // API Routes
 app.get('/api/confessions', (req, res) => {

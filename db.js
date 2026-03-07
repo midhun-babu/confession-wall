@@ -15,6 +15,13 @@ db.exec(`
   )
 `);
 
+// Migration for existing databases
+try {
+  db.exec('ALTER TABLE confessions ADD COLUMN filtered INTEGER DEFAULT 0');
+} catch (err) {
+  // Column likely already exists
+}
+
 const addConfession = (content, filtered = 0) => {
   const stmt = db.prepare('INSERT INTO confessions (content, filtered) VALUES (?, ?)');
   const info = stmt.run(content, filtered ? 1 : 0);

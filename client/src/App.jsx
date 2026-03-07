@@ -94,12 +94,20 @@ function App() {
         <div className="row justify-content-center">
           <div className="col-12 col-lg-8">
             <header className="header text-center mb-5 position-relative">
-              <div className="position-absolute end-0 top-0">
+              <div
+                className="position-absolute end-0 top-0"
+                style={{ zIndex: 10 }}
+              >
                 <button
-                  className="btn btn-outline-secondary rounded-circle p-2 d-flex align-items-center justify-content-center hover-scale"
-                  onClick={() => setIsRomantic(!isRomantic)}
+                  type="button"
+                  className="btn btn-outline-secondary rounded-circle p-2 d-flex align-items-center justify-content-center hover-scale shadow-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log('Toggling theme from', isRomantic, 'to', !isRomantic);
+                    setIsRomantic(prev => !prev);
+                  }}
                   title={isRomantic ? "Switch to Ghost Mode" : "Switch to Romantic Mode"}
-                  style={{ width: '40px', height: '40px' }}
+                  style={{ width: '42px', height: '42px', backgroundColor: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
                 >
                   {isRomantic ? <Ghost size={20} /> : <Heart size={20} fill="#f43f5e" color="#f43f5e" />}
                 </button>
