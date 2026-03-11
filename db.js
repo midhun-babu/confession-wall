@@ -11,30 +11,46 @@ db.exec(`
     content TEXT NOT NULL,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     reactions TEXT DEFAULT '{}',
-    filtered INTEGER DEFAULT 0
+    filtered INTEGER DEFAULT 0,
+    reported INTEGER DEFAULT 0,
+    report_count INTEGER DEFAULT 0
   )
 `);
 
 // Migration for existing databases
 try {
   db.exec('ALTER TABLE confessions ADD COLUMN filtered INTEGER DEFAULT 0');
-} catch (err) {
-  // Column likely already exists
-}
+} catch (err) { }
+try {
+  db.exec('ALTER TABLE confessions ADD COLUMN reported INTEGER DEFAULT 0');
+} catch (err) { }
+try {
+  db.exec('ALTER TABLE confessions ADD COLUMN report_count INTEGER DEFAULT 0');
+} catch (err) { }
 
 const addConfession = (content, filtered = 0) => {
-  const stmt = db.prepare('INSERT INTO confessions (content, filtered) VALUES (?, ?)');
+  const stmt = db.prepare('INSERT INTO confessions (content, filtered, reported, report_count) VALUES (?, ?, 0, 0)');
   const info = stmt.run(content, filtered ? 1 : 0);
-  return { id: info.lastInsertRowid, content, timestamp: new Date().toISOString(), reactions: {}, filtered: !!filtered };
+  return { id: info.lastInsertRowid, content, timestamp: new Date().toISOString(), reactions: {}, filtered: !!filtered, reported: false, report_count: 0 };
 };
 
 const getConfessions = () => {
-  const stmt = db.prepare('SELECT * FROM confessions ORDER BY timestamp DESC');
+  const stmt = db.prepare('SELECT * FROM confessions WHERE report_count < 5 ORDER BY timestamp DESC');
   return stmt.all().map(row => ({
     ...row,
     reactions: JSON.parse(row.reactions),
-    filtered: !!row.filtered
+    filtered: !!row.filtered,
+    reported: !!row.reported
   }));
+};
+
+const reportConfession = (id) => {
+  const stmt = db.prepare('UPDATE confessions SET report_count = report_count + 1, reported = 1 WHERE id = ?');
+  const info = stmt.run(id);
+
+  const getStmt = db.prepare('SELECT report_count FROM confessions WHERE id = ?');
+  const row = getStmt.get(id);
+  return row ? row.report_count : null;
 };
 
 const addReaction = (id, emoji) => {
@@ -60,5 +76,6 @@ module.exports = {
   addConfession,
   getConfessions,
   addReaction,
+  reportConfession,
   deleteExpiredConfessions
 };

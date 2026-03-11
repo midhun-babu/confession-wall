@@ -11,20 +11,40 @@ function App() {
   const [confessions, setConfessions] = useState([]);
   const [newConfession, setNewConfession] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isRomantic, setIsRomantic] = useState(false);
+  const [theme, setTheme] = useState('midnight'); // midnight, romantic, cyberpunk
   const [copiedId, setCopiedId] = useState(null);
+  const [toasts, setToasts] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchVisible, setIsSearchVisible] = useState(false);
+
+  const addToast = (message, icon = <Sparkles size={16} />) => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, icon }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 3000);
+  };
 
   useEffect(() => {
-    document.body.className = isRomantic ? 'romantic-mode' : '';
-  }, [isRomantic]);
+    document.body.className = theme !== 'midnight' ? `${theme}-mode` : '';
+  }, [theme]);
 
-  useEffect(() => {
-    fetch(`${API_URL}/api/confessions`)
+  const loadConfessions = (search = '') => {
+    const url = search
+      ? `${API_URL}/api/confessions?search=${encodeURIComponent(search)}`
+      : `${API_URL}/api/confessions`;
+
+    fetch(url)
       .then(res => res.json())
       .then(data => setConfessions(data));
+  };
+
+  useEffect(() => {
+    loadConfessions();
 
     socket.on('new-confession', (confession) => {
       setConfessions(prev => [confession, ...prev]);
+      addToast('New whisper arrived!');
     });
 
     socket.on('update-reactions', ({ id, reactions }) => {
@@ -33,18 +53,23 @@ function App() {
       ));
     });
 
+    socket.on('confession-reported', (id) => {
+      setConfessions(prev => prev.map(c =>
+        c.id === id ? { ...c, reported: true } : c
+      ));
+    });
+
     socket.on('refresh-feed', () => {
-      fetch(`${API_URL}/api/confessions`)
-        .then(res => res.json())
-        .then(data => setConfessions(data));
+      loadConfessions(searchQuery);
     });
 
     return () => {
       socket.off('new-confession');
       socket.off('update-reactions');
+      socket.off('confession-reported');
       socket.off('refresh-feed');
     };
-  }, []);
+  }, [searchQuery]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -53,11 +78,19 @@ function App() {
     setIsSubmitting(true);
     socket.emit('post-confession', newConfession);
     setNewConfession('');
+    addToast('Secret whispered...', <Send size={16} />);
     setTimeout(() => setIsSubmitting(false), 500);
   };
 
   const handleReact = (id, emoji) => {
     socket.emit('react', { id, emoji });
+  };
+
+  const handleReport = (id) => {
+    if (window.confirm('Report this confession for review?')) {
+      socket.emit('report-confession', id);
+      addToast('Reported for kindness.', <Frown size={16} />);
+    }
   };
 
   const handleShare = async (confession) => {
@@ -74,11 +107,17 @@ function App() {
         console.error('Error sharing:', err);
       }
     } else {
-      // Fallback to copy
       navigator.clipboard.writeText(`"${confession.content}" - Whispered on ${window.location.href}`);
       setCopiedId(confession.id);
+      addToast('Copied to clipboard!', <Copy size={16} />);
       setTimeout(() => setCopiedId(null), 2000);
     }
+  };
+
+  const cycleTheme = () => {
+    const themes = ['midnight', 'romantic', 'cyberpunk'];
+    const nextIndex = (themes.indexOf(theme) + 1) % themes.length;
+    setTheme(themes[nextIndex]);
   };
 
   const charCountColor = () => {
@@ -88,28 +127,79 @@ function App() {
     return 'opacity-50';
   };
 
+  const getThemeIcon = () => {
+    switch (theme) {
+      case 'romantic': return <Heart size={20} fill="#f43f5e" color="#f43f5e" />;
+      case 'cyberpunk': return <Sparkles size={20} color="#0cf" />;
+      default: return <Ghost size={20} />;
+    }
+  };
+
+  const getTitleIcon = (size = 40) => {
+    switch (theme) {
+      case 'romantic': return <Heart size={size} fill="currentColor" className="me-2 align-middle" />;
+      case 'cyberpunk': return <Sparkles size={size} className="me-2 align-middle" />;
+      default: return <Ghost size={size} className="me-2 align-middle" />;
+    }
+  };
+
+  const getHeaderTitle = () => {
+    switch (theme) {
+      case 'romantic': return "Lover's Whisper";
+      case 'cyberpunk': return "Neon Pulse";
+      default: return "Midnight Ghost";
+    }
+  };
+
+  const getHeaderSub = () => {
+    switch (theme) {
+      case 'romantic': return "Speak from the heart... anonymously.";
+      case 'cyberpunk': return "Encrypted leaks from the undercity.";
+      default: return "Whisper your secrets into the night... they vanish at dawn.";
+    }
+  };
+
   return (
-    <div className={`min-vh-100 py-5 ${isRomantic ? 'romantic-mode' : ''}`}>
+    <div className={`min-vh-100 py-5 ${theme !== 'midnight' ? `${theme}-mode` : ''}`}>
+      <div className="toast-container">
+        <AnimatePresence>
+          {toasts.map(toast => (
+            <motion.div
+              key={toast.id}
+              initial={{ opacity: 0, y: 20, scale: 0.8 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className="toast-message"
+            >
+              {toast.icon}
+              {toast.message}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+
       <div className="container" style={{ position: 'relative', zIndex: 2 }}>
         <div className="row justify-content-center">
           <div className="col-12 col-lg-8">
             <header className="header text-center mb-5 position-relative">
-              <div
-                className="position-absolute end-0 top-0"
-                style={{ zIndex: 10 }}
-              >
+              <div className="position-absolute end-0 top-0 d-flex gap-2" style={{ zIndex: 10 }}>
                 <button
                   type="button"
                   className="btn btn-outline-secondary rounded-circle p-2 d-flex align-items-center justify-content-center hover-scale shadow-sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    console.log('Toggling theme from', isRomantic, 'to', !isRomantic);
-                    setIsRomantic(prev => !prev);
-                  }}
-                  title={isRomantic ? "Switch to Ghost Mode" : "Switch to Romantic Mode"}
+                  onClick={() => setIsSearchVisible(!isSearchVisible)}
+                  title="Search whispers"
                   style={{ width: '42px', height: '42px', backgroundColor: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
                 >
-                  {isRomantic ? <Ghost size={20} /> : <Heart size={20} fill="#f43f5e" color="#f43f5e" />}
+                  <Smile size={20} />
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary rounded-circle p-2 d-flex align-items-center justify-content-center hover-scale shadow-sm"
+                  onClick={cycleTheme}
+                  title={`Switch theme (Current: ${theme})`}
+                  style={{ width: '42px', height: '42px', backgroundColor: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+                >
+                  {getThemeIcon()}
                 </button>
               </div>
               <motion.div
@@ -118,12 +208,32 @@ function App() {
                 transition={{ duration: 0.5 }}
               >
                 <h1 className="display-4 fw-bold mb-3">
-                  {isRomantic ? <Heart size={40} fill="currentColor" className="me-2 align-middle" /> : <Ghost size={40} className="me-2 align-middle" />}
-                  {isRomantic ? 'Lover\'s Whisper' : 'Midnight Ghost'}
+                  {getTitleIcon()}
+                  {getHeaderTitle()}
                 </h1>
-                <p className="lead opacity-75">{isRomantic ? 'Speak from the heart... anonymously.' : 'Whisper your secrets into the night... they vanish at dawn.'}</p>
+                <p className="lead opacity-75">{getHeaderSub()}</p>
               </motion.div>
             </header>
+
+            <div className={`search-container ${isSearchVisible ? 'active' : ''}`}>
+              <div className="card theme-card shadow-sm border-0">
+                <div className="card-body p-2 d-flex align-items-center gap-2">
+                  <Smile size={20} className="ms-2 opacity-50" />
+                  <input
+                    type="text"
+                    className="form-control bg-transparent border-0 shadow-none text-white fs-5"
+                    placeholder="Search secrets or tags..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  {searchQuery && (
+                    <button className="btn btn-link text-white opacity-50 p-0 me-2" onClick={() => setSearchQuery('')}>
+                      <Clock size={16} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
 
             <div className="card shadow-sm mb-4 theme-card overflow-hidden">
               <div className="card-body p-4">
@@ -177,14 +287,28 @@ function App() {
                               Filtered for kindness
                             </span>
                           )}
+                          {confession.reported && (
+                            <span className="badge rounded-pill badge-reported fw-normal px-2">
+                              Flagged for review
+                            </span>
+                          )}
                         </div>
-                        <button
-                          className="btn btn-link p-0 opacity-50 hover-opacity-100 transition-all border-0 shadow-none"
-                          onClick={() => handleShare(confession)}
-                          title="Share whisper"
-                        >
-                          {copiedId === confession.id ? <Check size={16} className="text-success" /> : <Share2 size={16} />}
-                        </button>
+                        <div className="d-flex gap-2">
+                          <button
+                            className="btn btn-link p-0 opacity-50 hover-opacity-100 transition-all border-0 shadow-none report-btn"
+                            onClick={() => handleReport(confession.id)}
+                            title="Report whisper"
+                          >
+                            <Frown size={16} />
+                          </button>
+                          <button
+                            className="btn btn-link p-0 opacity-50 hover-opacity-100 transition-all border-0 shadow-none"
+                            onClick={() => handleShare(confession)}
+                            title="Share whisper"
+                          >
+                            {copiedId === confession.id ? <Check size={16} className="text-success" /> : <Share2 size={16} />}
+                          </button>
+                        </div>
                       </div>
                       <p className="card-text fs-5 mb-4" style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
                         {confession.content}
