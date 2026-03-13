@@ -2,7 +2,6 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
-const Filter = require('bad-words');
 const { addConfession, getConfessions, addReaction, reportConfession, deleteExpiredConfessions } = require('./db');
 
 const app = express();
@@ -20,8 +19,17 @@ const io = new Server(server, {
     }
 });
 
-const filter = new Filter();
-filter.addWords('badword');
+let filter;
+(async () => {
+    try {
+        const { Filter } = await import('bad-words');
+        filter = new Filter();
+        filter.addWords('badword');
+        console.log('Profanity filter initialized.');
+    } catch (err) {
+        console.error('Failed to load profanity filter:', err);
+    }
+})();
 
 // API Routes
 app.get('/api/confessions', (req, res) => {
