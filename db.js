@@ -4,7 +4,6 @@ const path = require('path');
 const dbPath = path.resolve(__dirname, 'confessions.db');
 const db = new Database(dbPath);
 
-// Initialize database
 db.exec(`
   CREATE TABLE IF NOT EXISTS confessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
